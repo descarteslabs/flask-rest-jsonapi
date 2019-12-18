@@ -2,7 +2,10 @@
 
 """Helper to create sqlalchemy filters according to filter querystring parameter"""
 
+import json
+
 from sqlalchemy import and_, or_, not_
+from sqlalchemy.types import Indexable
 
 from flask_rest_jsonapi.exceptions import InvalidFilters
 from flask_rest_jsonapi.schema import get_relationships, get_model_field
@@ -74,6 +77,9 @@ class Node(object):
 
         if '__' in name:
             name = name.split('__')[0]
+        
+        if '[' in name:
+            name = name.split('[')[0]
 
         if name not in self.schema._declared_fields:
             raise InvalidFilters("{} has no attribute {}".format(self.schema.__name__, name))
@@ -104,9 +110,38 @@ class Node(object):
         model_field = get_model_field(self.schema, field)
 
         try:
-            return getattr(self.model, model_field)
+            attr = getattr(self.model, model_field)
         except AttributeError:
             raise InvalidFilters("{} has no attribute {}".format(self.model.__name__, model_field))
+
+        name = self.filter_.get('name')
+        if '[' in name:
+            if not isinstance(attr.type, Indexable):
+                raise InvalidFilters("{} is not an indexable column".format(model_field))
+            name = name[name.index('['):]
+            while name.startswith('['):
+                item, name = name[1:].split(']', 1)
+                try:
+                    item = json.loads(item)
+                except json.decoder.JSONDecodeError:
+                    raise InvalidFilters("{} is not a valid index".format(item))
+                try:
+                    attr = attr[item]
+                except Exception:
+                    raise InvalidFilters("{} is not a valid indexing expression".format(self.filter_.get('name')))
+            # at this point should either be the end of the string or invocation of a type coersion
+            if name == ".as_string()":
+                attr = attr.as_string()
+            elif name == ".as_integer()":
+                attr = attr.as_integer()
+            elif name == ".as_float()":
+                attr = attr.as_float()
+            elif name == ".as_boolean()":
+                attr = attr.as_boolean()
+            else:
+                raise InvalidFilters("{} is not a valid JSON type coersion".format(self.filter_.get('name')))
+
+        return attr
 
     @property
     def operator(self):

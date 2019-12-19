@@ -129,7 +129,6 @@ class Node(object):
                     attr = attr[item]
                 except Exception:
                     raise InvalidFilters("{} is not a valid indexing expression".format(self.filter_.get('name')))
-            # at this point should either be the end of the string or invocation of a type coersion
             if name == ".as_string()":
                 attr = attr.as_string()
             elif name == ".as_integer()":
@@ -138,8 +137,8 @@ class Node(object):
                 attr = attr.as_float()
             elif name == ".as_boolean()":
                 attr = attr.as_boolean()
-            else:
-                raise InvalidFilters("{} is not a valid JSON type coersion".format(self.filter_.get('name')))
+            elif len(name) > 0:
+                raise InvalidFilters("{} is not a valid indexing expression".format(self.filter_.get('name')))
 
         return attr
 

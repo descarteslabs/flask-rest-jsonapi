@@ -190,7 +190,8 @@ class QueryStringManager(object):
 
         :return list: a list of include information
         """
-        include_param = self.qs.get('include', [])
+        include_param = self.qs.get('include')
+        include_param = include_param.split(',') if include_param else []
 
         if current_app.config.get('MAX_INCLUDE_DEPTH') is not None:
             for include_path in include_param:
@@ -198,4 +199,4 @@ class QueryStringManager(object):
                     raise InvalidInclude("You can't use include through more than {} relationships"
                                          .format(current_app.config['MAX_INCLUDE_DEPTH']))
 
-        return include_param.split(',') if include_param else []
+        return include_param
